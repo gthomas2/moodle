@@ -32,6 +32,12 @@ require_once($CFG->libdir.'/gdlib.php');
 
 class filter_responsive extends moodle_text_filter {
 
+
+    public function setup($page, $context) {
+        global $PAGE;
+        $PAGE->requires->js('/filter/responsive/javascript/picturefill.js', true);
+    }
+
     /**
      * Shame that this was nicked from gdlib.php and that there isn't a function I could have used from there.
      * Creates a resized version of image and stores copy in file area
@@ -254,9 +260,10 @@ class filter_responsive extends moodle_text_filter {
                         foreach ($urlsbysize as $key => $url) {
                             $firsturl = $firsturl == '' ? $url : $firsturl;
                             $srcset .= $srcset == '' ? '' : ', ';
-                            $srcset .= $url.' ['.$key.'width]w';
+                            //$srcset .= $url.' ['.$key.'width]w';
+                            $srcset .= $url.' '.$filesizes[$key].'w';
                         }
-                        $srcset .= ', '.$href.' [extralargewidth]w';
+                        //$srcset .= ', '.$href.' [extralargewidth]w';
 
 
                         $newimghtml = preg_replace($pattern, 'src="'.$firsturl.'" srcset="'.$srcset.'"', $imghtml);

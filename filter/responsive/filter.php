@@ -28,16 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir.'/gdlib.php');
 
-// This class looks for text including markup and
-// applies tidy's repair function to it.
-// Tidy is a HTML clean and
-// repair utility, which is currently available for PHP 4.3.x and PHP 5 as a
-// PECL extension from http://pecl.php.net/package/tidy, in PHP 5 you need only
-// to compile using the --with-tidy option.
-// If you don't have the tidy extension installed or don't know, you can enable
-// or disable this filter, it just won't have any effect.
-// If you want to know what you can set in $tidyoptions and what their default
-// values are, see http://php.net/manual/en/function.tidy-get-config.php.
+// This class looks for text including img tags and makes any images responsive using the srcset attribute.
 
 class filter_responsive extends moodle_text_filter {
 

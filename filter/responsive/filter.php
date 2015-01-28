@@ -49,9 +49,9 @@ class filter_responsive extends moodle_text_filter {
      * @param string $originalfile
      * @param int $newwidth;
      * @param int $newheight;
-     * @return mixed new unique revision number or false if not saved
+     * @return stored_file
      */
-    function copy_resize_image($context, $component, $filearea, $itemid, $originalfile, $resizefilename, $newwidth = false, $newheight = false) {
+    function copy_resize_image($context, $component, $filearea, $itemid, $originalfile, $resizefilename, $newwidth = false, $newheight = false, $debug = false) {
 
         if (!$newwidth && !$newheight) {
             return false;
@@ -106,12 +106,10 @@ class filter_responsive extends moodle_text_filter {
                 // If the user uploads a jpeg them we should process as a jpeg if possible.
                 if (function_exists('imagejpeg')) {
                     $imagefnc = 'imagejpeg';
-                    $imageext = '.jpg';
                     $filters = null; // Not used.
                     $quality = 90;
                 } else if (function_exists('imagepng')) {
                     $imagefnc = 'imagepng';
-                    $imageext = '.png';
                     $filters = PNG_NO_FILTER;
                     $quality = 1;
                 } else {
@@ -135,12 +133,10 @@ class filter_responsive extends moodle_text_filter {
         if (empty($imagefnc)) {
             if (function_exists('imagepng')) {
                 $imagefnc = 'imagepng';
-                $imageext = '.png';
                 $filters = PNG_NO_FILTER;
                 $quality = 1;
             } else if (function_exists('imagejpeg')) {
                 $imagefnc = 'imagejpeg';
-                $imageext = '.jpg';
                 $filters = null; // Not used.
                 $quality = 90;
             } else {
@@ -174,18 +170,24 @@ class filter_responsive extends moodle_text_filter {
 
         $newimageparams = array('contextid'=>$context->id, 'component'=>$component, 'filearea'=>$filearea, 'itemid'=>$itemid, 'filepath'=>'/');
 
+        if ($debug) {
+            $red = imagecolorallocate($newimage, 200, 0, 0);
+
+            imagettftext($newimage, 64, 0, 0, 64, $red, __DIR__.'/fonts/nordicaadvancedregular-webfont.ttf', 'size: '.intval($newwidth).' x '.intval($newheight));
+        }
+
         ob_start();
         if (!$imagefnc($newimage, NULL, $quality, $filters)) {
             return false;
         }
+
         $data = ob_get_clean();
         imagedestroy($newimage);
         $newimageparams['filename'] = $resizefilename;
 
         $file1 = $fs->create_file_from_string($newimageparams, $data);
 
-
-        return $file1->get_id();
+        return $file1;
     }
 
     function filter($text, array $options = array()) {
@@ -203,7 +205,7 @@ class filter_responsive extends moodle_text_filter {
                 foreach ($hrefmatches[1] as $href) {
 
                     preg_match('/(?<=pluginfile.php).*$/', $href, $filematches);
-                    if (!empty($filematches[0])){
+                    if (!empty($filematches[0])) {
                         $relativepath = $filematches[0];
 
                         // extract relative path components
@@ -217,7 +219,7 @@ class filter_responsive extends moodle_text_filter {
                         $contextid = (int)array_shift($args);
                         $component = clean_param(array_shift($args), PARAM_COMPONENT);
                         $filearea  = clean_param(array_shift($args), PARAM_AREA);
-                        $filename = clean_param(array_shift($args), PARAM_FILE);
+                        $filename = urldecode(clean_param(array_shift($args), PARAM_FILE));
                         $fi = pathinfo($filename);
 
                         list($context, $course, $cm) = get_context_info_array($contextid);
@@ -239,17 +241,26 @@ class filter_responsive extends moodle_text_filter {
                             $resizedname = $fi['filename'].'_'.$key.'.'.$fi['extension'];
                             $finfo = $fb->get_file_info($context, $component, $filearea, null, null, $resizedname);
                             if (!$finfo || $finfo->get_timemodified() < $timemodified) {
+                                if ($finfo) {
+                                    // We already have a resized file so we need to delete it.
+                                    $fparams = $finfo->get_params();
+                                    $delfile = $fs->get_file($contextid,$component,$filearea,$fparams['itemid'],$fparams['filepath'],$resizedname);
+                                    $delfile -> delete();
+                                }
                                 if (!$tempfile) {
                                     // We have to copy the current image to a temporary file because moodle doesn't
                                     // let you get the actual on disk path for a file - $file->get_content_file_location
                                     // is a protected method.
                                     $tempfile = $file->copy_content_to_temp();
                                 }
-                                $nimage = $this->copy_resize_image($context, $component, $filearea, $file->get_itemid(), $tempfile, $resizedname, $size);
-                                $urlsbysize[$key] = $nimage->get_url();
-                            } else {
-                                $urlsbysize[$key] = $finfo->get_url();
+                                $nimage = $this->copy_resize_image($context, $component, $filearea, $file->get_itemid(), $tempfile, $resizedname, $size, false, true);
+                                if (!$nimage instanceof stored_file) {
+                                    // @todo - error?
+                                    continue;
+                                }
+                                $finfo = $fb->get_file_info($context, $component, $filearea, null, null, $resizedname);
                             }
+                            $urlsbysize[$key] = $finfo->get_url();
                         }
 
                         $pattern = '/src="(.*?)"/';
@@ -260,13 +271,18 @@ class filter_responsive extends moodle_text_filter {
                         foreach ($urlsbysize as $key => $url) {
                             $firsturl = $firsturl == '' ? $url : $firsturl;
                             $srcset .= $srcset == '' ? '' : ', ';
-                            //$srcset .= $url.' ['.$key.'width]w';
                             $srcset .= $url.' '.$filesizes[$key].'w';
                         }
                         //$srcset .= ', '.$href.' [extralargewidth]w';
 
-
                         $newimghtml = preg_replace($pattern, 'src="'.$firsturl.'" srcset="'.$srcset.'"', $imghtml);
+
+                        // Remove these attributes.
+                        $removeatts = ['width', 'height'];
+                        foreach ($removeatts as $att) {
+                            $pattern = '/'.$att.'="(.*?)"/';
+                            $newimghtml = preg_replace($pattern, '', $newimghtml);
+                        }
 
                         // replace old image html with srcset imghtml
                         $text = str_ireplace($imghtml, $newimghtml, $text);

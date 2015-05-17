@@ -66,6 +66,12 @@ class HTML_QuickForm_element extends HTML_Common
      * @access    private
      */
     var $_persistantFreeze = false;
+
+    /**
+     * GT Mod
+     * @var bool
+     */
+    protected $required = false;
     
     // }}}
     // {{{ constructor
@@ -93,6 +99,24 @@ class HTML_QuickForm_element extends HTML_Common
     
     // }}}
     // {{{ apiVersion()
+
+    /**
+     * GT Mod
+     * @param bool $required
+     */
+    public function set_required($required = true) {
+        $this->required = $required;
+        $this->_attributes['required'] = 'required';
+    }
+
+    /**
+     * GT Mod
+     * @return bool
+     */
+    public function get_required() {
+        unset ($this->_attributes['required']);
+        return $this->required;
+    }
 
     /**
      * Returns the current API version

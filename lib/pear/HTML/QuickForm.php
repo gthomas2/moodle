@@ -1047,6 +1047,9 @@ class HTML_QuickForm extends HTML_Common {
         }
         if ($type == 'required' || $type == 'uploadedfile') {
             $this->_required[] = $element;
+            // GT Mod - Set form element required property.
+            $fe = $this->getElement($element);
+            $fe->set_required();
         }
         if (!isset($this->_rules[$element])) {
             $this->_rules[$element] = array();

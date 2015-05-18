@@ -106,7 +106,11 @@ class HTML_QuickForm_element extends HTML_Common
      */
     public function set_required($required = true) {
         $this->required = $required;
-        $this->_attributes['required'] = 'required';
+        if ($required) {
+            $this->_attributes['required'] = 'required';
+        } else {
+            unset ($this->_attributes['required']);
+        }
     }
 
     /**
@@ -114,7 +118,6 @@ class HTML_QuickForm_element extends HTML_Common
      * @return bool
      */
     public function get_required() {
-        unset ($this->_attributes['required']);
         return $this->required;
     }
 

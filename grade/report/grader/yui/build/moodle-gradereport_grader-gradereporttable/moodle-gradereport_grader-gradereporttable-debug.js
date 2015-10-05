@@ -623,7 +623,10 @@ FloatingHeaders.prototype = {
             var height = node.getComputedStyle(HEIGHT);
             // Nasty hack to account for Internet Explorer
             if(Y.UA.ie !== 0) {
-                var allHeight = node.get('offsetHeight');
+                var allHeight = node.getDOMNode ?
+                    node.getDOMNode().getBoundingClientRect().height :
+                    node.get('offsetHeight');
+
                 var marginHeight = parseInt(node.getComputedStyle('marginTop'),10) +
                     parseInt(node.getComputedStyle('marginBottom'),10);
                 var paddingHeight = parseInt(node.getComputedStyle('paddingTop'),10) +

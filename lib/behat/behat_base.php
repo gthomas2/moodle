@@ -528,6 +528,49 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
     }
 
     /**
+     * Checks that the provided node is visible.
+     *
+     * @throws ExpectationException
+     * @param NodeElement $node
+     * @param int $timeout
+     * @param null|ExpectationException $exception
+     * @return bool
+     */
+    protected function is_node_visible(NodeElement $node,
+                                       $timeout = self::EXTENDED_TIMEOUT,
+                                       ExpectationException $exception = null) {
+
+        // If an exception isn't specified then don't throw an error if visibility can't be evaluated.
+        $dontthrowerror = $exception === null;
+
+        // Exception for timeout checking visibility.
+        $msg = 'Something went wrong whilst checking visibility';
+        $exception = new ExpectationException($msg, $this->getSession());
+
+        $visible = false;
+
+        try {
+            $visible = $this->spin(
+                function ($context, $args) {
+                    if ($args->isVisible()) {
+                        return true;
+                    }
+                    return false;
+                },
+                $node,
+                $timeout,
+                $exception,
+                true
+            );
+        } catch (Exception $e) {
+            if (!$dontthrowerror) {
+                throw $exception;
+            }
+        }
+        return $visible;
+    }
+
+    /**
      * Ensures that the provided node is visible and we can interact with it.
      *
      * @throws ExpectationException
@@ -544,19 +587,8 @@ class behat_base extends Behat\MinkExtension\Context\RawMinkContext {
         $msg = 'The "' . $node->getXPath() . '" xpath node is not visible and it should be visible';
         $exception = new ExpectationException($msg, $this->getSession());
 
-        // It will stop spinning once the isVisible() method returns true.
-        $this->spin(
-            function($context, $args) {
-                if ($args->isVisible()) {
-                    return true;
-                }
-                return false;
-            },
-            $node,
-            self::EXTENDED_TIMEOUT,
-            $exception,
-            true
-        );
+        // Throw expcetion if evaluating visibility fails.
+        $this->is_node_visible($node, self::EXTENDED_TIMEOUT, $exception);
     }
 
     /**

@@ -231,10 +231,53 @@ class behat_general extends behat_base {
      * @param string $link
      */
     public function click_link($link) {
-
         $linknode = $this->find_link($link);
-        $this->ensure_node_is_visible($linknode);
-        $linknode->click();
+        if (!$linknode) {
+            $msg = 'The "' . $linknode->getXPath() . '" xpath node could not be found';
+            throw new ExpectationException($msg, $this->getSession());
+        }
+
+        // See if the first node is visible and if so click it.
+        if ($this->is_node_visible($linknode)) {
+            $linknode->click();
+            return;
+        }
+
+        // The first node on the page isn't visible so we are going to have to get all nodes with the same xpath.
+        // Extract xpath from the first node we found.
+        $xpath = $linknode->getXpath();
+        $matches = [];
+        if (preg_match_all('|^\(//html/(.*)(?=\)\[1\]$)|', $xpath, $matches) !== false) {
+            $xpath = $matches[1][0];
+        } else {
+            throw new coding_exception('Failed to extract xpath from '.$xpath);
+        }
+
+        // Now get all nodes.
+        $linknodes = $this->find_all('xpath', $xpath);
+
+        // Cycle through all nodes and if just one of them is visible break loop.
+        $msg = 'Visible "' . $linknode->getXPath() . '" xpath node could not be found';
+        $exception = new ExpectationException($msg, $this->getSession());
+        foreach ($linknodes as $node) {
+            if ($node === $linknode) {
+                // We've already tested the first node, skip it.
+                continue;
+            }
+            $visible = $this->is_node_visible($node, self::REDUCED_TIMEOUT);
+            if ($visible) {
+                break;
+            }
+        }
+
+        if (!$visible) {
+            // Oh dear, none of the links were visible.
+            $msg = 'At least one node should be visible for the xpath "' . $node->getXPath();
+            throw new ExpectationException($msg, $this->getSession());
+        }
+
+        // Hurray, we found a visible link - let's click it!
+        $node->click();
     }
 
     /**

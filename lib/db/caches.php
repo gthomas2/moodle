@@ -292,4 +292,9 @@ $definitions = array(
             'resettagindexbuilder',
         ),
     ),
+    'webservicedefinitions' => array(
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => false,
+        'simpledata' => false
+    )
 );

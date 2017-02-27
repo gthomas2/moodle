@@ -248,7 +248,7 @@ class gradingform_guide_renderer extends plugin_renderer_base {
                 foreach ($comments as $id => $comment) {
                     $commentoption = new stdClass();
                     $commentoption->id = $id;
-                    $commentoption->description = s($comment['description']);
+                    $commentoption->description = $comment['description'];
                     $commentoptions[] = $commentoption;
                 }
 

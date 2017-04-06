@@ -62,21 +62,28 @@ define(['jquery', 'core/event'], function($, Event) {
             .addBack(selector)
             .find('audio, video').each(function() {
                 var id = $(this).attr('id'),
-                    config = $(this).data('setup'),
-                    modules = ['media_videojs/video-lazy'];
+                    config = $(this).data('setup');
 
-                if (config.techOrder && config.techOrder.indexOf('youtube') !== -1) {
-                    // Add YouTube to the list of modules we require.
-                    modules.push('media_videojs/Youtube-lazy');
-                }
-                require(modules, function(videojs) {
+            if (config.techOrder && config.techOrder.indexOf('youtube') !== -1) {
+                require(['media_videojs/Youtube-lazy'], function() {
+                    require(['media_videojs/video-lazy'], function(videojs) {
+                        if (onload) {
+                            onload(videojs);
+                            onload = null;
+                        }
+                        videojs(id, config);
+                    });
+                });
+            } else {
+                require(['media_videojs/video-lazy'], function(videojs) {
                     if (onload) {
                         onload(videojs);
                         onload = null;
                     }
                     videojs(id, config);
                 });
-            });
+            }
+        });
     };
 
     return {

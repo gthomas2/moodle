@@ -3600,4 +3600,71 @@ class core_moodlelib_testcase extends advanced_testcase {
         $a = array('aggregatesonly' => [51, 34], 'gradesonly' => [21, 45, 78]);
         $this->assertEquals($a, unserialize_array(serialize($a)));
     }
+
+    public function test_generate_password_maxlen() {
+        $maxlen = 8;
+        $password = generate_password($maxlen);
+        $this->assertLessThanOrEqual($maxlen, strlen($password));
+    }
+
+    public function test_generate_password_site_policy_length() {
+        global $CFG;
+        $this->resetAfterTest();
+        $password = generate_password(5);
+
+        $this->assertLessThan(20, core_text::strlen($password));
+        $CFG->minpasswordlength = 20;
+        $password = generate_password(5);
+        $this->assertGreaterThanOrEqual(20, core_text::strlen($password));
+    }
+
+    /**
+     * Make sure password has a minimum number of a certain char type by regex - e.g. digits, uppercase, etc.
+     * @param string $cfgkey
+     * @param string $regex
+     * @param int $minchars
+     */
+    protected function password_assert_min_chars($cfgkey, $regex, $minchars) {
+        global $CFG;
+
+        $this->resetAfterTest();
+
+        $CFG->$cfgkey = $minchars;
+        $password = generate_password(5);
+        $matches = [];
+        preg_match_all($regex, $password, $matches);
+        $this->assertCount($minchars, $matches[0]);
+    }
+
+    public function test_generate_password_site_policy_mindigits() {
+        $this->password_assert_min_chars('minpassworddigits', '/[0-9]/', 5);
+    }
+
+    public function test_generate_password_site_policy_minupper() {
+        $this->password_assert_min_chars('minpasswordupper', '/[A-Z]/', 5);
+    }
+
+    public function test_generate_password_site_policy_minlower() {
+        $this->password_assert_min_chars('minpasswordlower', '/[a-z]/', 5);
+    }
+
+    public function test_generate_password_site_policy_minnonalpha() {
+        $this->password_assert_min_chars('minpasswordnonalphanum', '/[^a-zA-Z\d\s]/', 5);
+    }
+
+    public function test_generate_password_site_policy_consecutives() {
+        global $CFG;
+        $this->resetAfterTest();
+        $CFG->maxconsecutiveidentchars = 1;
+        for ($v = 0; $v < 100; $v++) { // 100 iterations should be enough to trap a random consecutive.
+            $password = generate_password();
+            $chars = str_split($password);
+            $prevchar = '';
+            for ($c = 0; $c < count($chars); $c++) {
+                $char = $chars[$c];
+                $this->assertNotEquals($char, $prevchar, 'Concurrent strings found in '.$password);
+                $prevchar = $char;
+            }
+        }
+    }
 }

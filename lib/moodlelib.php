@@ -8231,10 +8231,15 @@ function getweek ($startdate, $thedate) {
  * {@link http://es2.php.net/manual/en/function.str-shuffle.php#73254}
  *
  * @param int $maxlen  The maximum size of the password being generated.
+ * @param int $i    Used for recursion limit.
  * @return string
  */
-function generate_password($maxlen=10) {
+function generate_password($maxlen = 10, $i = 0) {
     global $CFG;
+
+    if ($i > 100) {
+        throw new moodle_exception('Failed to create a password satisfying site policy after '.$i.' attempts.');
+    }
 
     if (empty($CFG->passwordpolicy)) {
         $fillers = PASSWORD_DIGITS;
@@ -8284,6 +8289,13 @@ function generate_password($maxlen=10) {
                                                      $passwordupper .
                                                      $passworddigits .
                                                      $passwordnonalphanum), 0 , $additional));
+    }
+
+    if (!empty($CFG->maxconsecutiveidentchars)) {
+        if(!check_consecutive_identical_characters($password, $CFG->maxconsecutiveidentchars)) {
+            // Generate a new password and pray that this one does not violate $CFG->maxconsecutiveidentchars.
+            $password = generate_password($maxlen, $i + 1);
+        }
     }
 
     return substr ($password, 0, $maxlen);

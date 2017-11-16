@@ -539,13 +539,14 @@ class behat_general extends behat_base {
     }
 
     /**
-     * Checks, that page contains specified text. It also checks if the text is visible when running Javascript tests.
-     *
-     * @Then /^I should see "(?P<text_string>(?:[^"]|\\")*)"$/
-     * @throws ExpectationException
+     * Assert that the page or a specific element contains text.
      * @param string $text
+     * @param ExpectationException $exception
+     * @param null $element
+     * @param null $selectortype
+     * @throws ExpectationException
      */
-    public function assert_page_contains_text($text) {
+    protected function assert_contains_text($text, ExpectationException $exception, $element = null, $selectortype = null) {
 
         // Looking for all the matching nodes without any other descendant matching the
         // same xpath (we are using contains(., ....).
@@ -554,9 +555,15 @@ class behat_general extends behat_base {
             "[count(descendant::*[contains(., $xpathliteral)]) = 0]";
 
         try {
-            $nodes = $this->find_all('xpath', $xpath);
+            if ($element) {
+                // Getting the container where the text should be found.
+                $container = $this->get_selected_node($selectortype, $element);
+                $nodes = $this->find_all('xpath', $xpath, false, $container);
+            } else {
+                $nodes = $this->find_all('xpath', $xpath);
+            }
         } catch (ElementNotFoundException $e) {
-            throw new ExpectationException('"' . $text . '" text was not found in the page', $this->getSession());
+            throw $exception;
         }
 
         // If we are not running javascript we have enough with the
@@ -568,34 +575,44 @@ class behat_general extends behat_base {
         // We spin as we don't have enough checking that the element is there, we
         // should also ensure that the element is visible. Using microsleep as this
         // is a repeated step and global performance is important.
+        $functionargs = ['nodes' => $nodes, 'text' => $text];
+        if (!empty($element)) {
+            $functionargs['element'] = $element;
+        }
         $this->spin(
             function($context, $args) {
 
                 foreach ($args['nodes'] as $node) {
-                    if ($node->isVisible()) {
-                        return true;
+                    try {
+                        if ($node->isVisible()) {
+                            return true;
+                        }
+                    } catch (WebDriver\Exception\NoSuchElement $e) {
+                        continue;
+                    } catch (WebDriver\Exception\StaleElementReference $e) {
+                        continue;
                     }
                 }
 
-                // If non of the nodes is visible we loop again.
-                throw new ExpectationException('"' . $args['text'] . '" text was found but was not visible', $context->getSession());
+                // If non of the nodes are visible we loop again.
+                return false;
             },
-            array('nodes' => $nodes, 'text' => $text),
+            $functionargs,
             false,
-            false,
+            $exception,
             true
         );
-
     }
 
     /**
-     * Checks, that page doesn't contain specified text. When running Javascript tests it also considers that texts may be hidden.
-     *
-     * @Then /^I should not see "(?P<text_string>(?:[^"]|\\")*)"$/
-     * @throws ExpectationException
+     * Assert that the page or a specific element does not contain text.
      * @param string $text
+     * @param ExpectationException $exception
+     * @param null $element
+     * @param null $selectortype
+     * @throws ExpectationException
      */
-    public function assert_page_not_contains_text($text) {
+    protected function assert_not_contains_text($text, ExpectationException $exception, $element = null, $selectortype = null) {
 
         // Looking for all the matching nodes without any other descendant matching the
         // same xpath (we are using contains(., ....).
@@ -607,7 +624,12 @@ class behat_general extends behat_base {
         // Waiting less than self::TIMEOUT as we already waited for the DOM to be ready and
         // all JS to be executed.
         try {
-            $nodes = $this->find_all('xpath', $xpath, false, false, self::REDUCED_TIMEOUT);
+            if ($element) {
+                $container = $this->get_selected_node($selectortype, $element);
+                $nodes = $this->find_all('xpath', $xpath, false, $container, self::REDUCED_TIMEOUT);
+            } else {
+                $nodes = $this->find_all('xpath', $xpath, false, false, self::REDUCED_TIMEOUT);
+            }
         } catch (ElementNotFoundException $e) {
             // All ok.
             return;
@@ -616,38 +638,72 @@ class behat_general extends behat_base {
         // If we are not running javascript we have enough with the
         // element existing as we can't check if it is hidden.
         if (!$this->running_javascript()) {
-            throw new ExpectationException('"' . $text . '" text was found in the page', $this->getSession());
+            throw $exception;
         }
 
         // If the element is there we should be sure that it is not visible.
+        $functionargs = ['nodes' => $nodes, 'text' => $text];
+        if (!empty($element)) {
+            $functionargs['element'] = $element;
+        }
         $this->spin(
             function($context, $args) {
 
+                $wdissue = false;
                 foreach ($args['nodes'] as $node) {
                     // If element is removed from dom, then just exit.
                     try {
                         // If element is visible then throw exception, so we keep spinning.
                         if ($node->isVisible()) {
-                            throw new ExpectationException('"' . $args['text'] . '" text was found in the page',
-                                $context->getSession());
+                            return false; // Break out of this spin iteration and let it try again!
                         }
                     } catch (WebDriver\Exception\NoSuchElement $e) {
-                        // Do nothing just return, as element is no more on page.
-                        return true;
-                    } catch (ElementNotFoundException $e) {
-                        // Do nothing just return, as element is no more on page.
-                        return true;
+                        $wdissue = true;
+                        continue;
+                    } catch (WebDriver\Exception\StaleElementReference $e) {
+                        $wdissue = true;
+                        continue;
                     }
                 }
 
-                // If non of the found nodes is visible we consider that the text is not visible.
-                return true;
+                // If non of the found nodes are visible and there were no web driver issues,
+                // we consider that the text is not visible.
+                if (!$wdissue) {
+                    return true;
+                } else {
+                    // Carry on spinning!
+                    return false;
+                }
             },
-            array('nodes' => $nodes, 'text' => $text),
-            self::REDUCED_TIMEOUT,
+            $functionargs,
             false,
+            $exception,
             true
         );
+    }
+
+    /**
+     * Checks, that page contains specified text. It also checks if the text is visible when running Javascript tests.
+     *
+     * @Then /^I should see "(?P<text_string>(?:[^"]|\\")*)"$/
+     * @throws ExpectationException
+     * @param string $text
+     */
+    public function assert_page_contains_text($text) {
+        $exception = new ExpectationException('"' . $text . '" text was not found in the page', $this->getSession());
+        $this->assert_contains_text($text, $exception);
+    }
+
+    /**
+     * Checks, that page doesn't contain specified text. When running Javascript tests it also considers that texts may be hidden.
+     *
+     * @Then /^I should not see "(?P<text_string>(?:[^"]|\\")*)"$/
+     * @throws ExpectationException
+     * @param string $text
+     */
+    public function assert_page_not_contains_text($text) {
+        $exception = new ExpectationException('"' . $text . '" text was found in the page', $this->getSession());
+        $this->assert_not_contains_text($text, $exception);
     }
 
     /**
@@ -661,47 +717,9 @@ class behat_general extends behat_base {
      * @param string $selectortype The type of element where we are looking in.
      */
     public function assert_element_contains_text($text, $element, $selectortype) {
-
-        // Getting the container where the text should be found.
-        $container = $this->get_selected_node($selectortype, $element);
-
-        // Looking for all the matching nodes without any other descendant matching the
-        // same xpath (we are using contains(., ....).
-        $xpathliteral = behat_context_helper::escape($text);
-        $xpath = "/descendant-or-self::*[contains(., $xpathliteral)]" .
-            "[count(descendant::*[contains(., $xpathliteral)]) = 0]";
-
-        // Wait until it finds the text inside the container, otherwise custom exception.
-        try {
-            $nodes = $this->find_all('xpath', $xpath, false, $container);
-        } catch (ElementNotFoundException $e) {
-            throw new ExpectationException('"' . $text . '" text was not found in the "' . $element . '" element', $this->getSession());
-        }
-
-        // If we are not running javascript we have enough with the
-        // element existing as we can't check if it is visible.
-        if (!$this->running_javascript()) {
-            return;
-        }
-
-        // We also check the element visibility when running JS tests. Using microsleep as this
-        // is a repeated step and global performance is important.
-        $this->spin(
-            function($context, $args) {
-
-                foreach ($args['nodes'] as $node) {
-                    if ($node->isVisible()) {
-                        return true;
-                    }
-                }
-
-                throw new ExpectationException('"' . $args['text'] . '" text was found in the "' . $args['element'] . '" element but was not visible', $context->getSession());
-            },
-            array('nodes' => $nodes, 'text' => $text, 'element' => $element),
-            false,
-            false,
-            true
-        );
+        $msg = '"' . $text . '" text was not found in the "' . $element . '" element';
+        $exception = new ExpectationException($msg, $this->getSession());
+        $this->assert_contains_text($text, $exception, $element, $selectortype);
     }
 
     /**
@@ -715,49 +733,9 @@ class behat_general extends behat_base {
      * @param string $selectortype The type of element where we are looking in.
      */
     public function assert_element_not_contains_text($text, $element, $selectortype) {
-
-        // Getting the container where the text should be found.
-        $container = $this->get_selected_node($selectortype, $element);
-
-        // Looking for all the matching nodes without any other descendant matching the
-        // same xpath (we are using contains(., ....).
-        $xpathliteral = behat_context_helper::escape($text);
-        $xpath = "/descendant-or-self::*[contains(., $xpathliteral)]" .
-            "[count(descendant::*[contains(., $xpathliteral)]) = 0]";
-
-        // We should wait a while to ensure that the page is not still loading elements.
-        // Giving preference to the reliability of the results rather than to the performance.
-        try {
-            $nodes = $this->find_all('xpath', $xpath, false, $container, self::REDUCED_TIMEOUT);
-        } catch (ElementNotFoundException $e) {
-            // All ok.
-            return;
-        }
-
-        // If we are not running javascript we have enough with the
-        // element not being found as we can't check if it is visible.
-        if (!$this->running_javascript()) {
-            throw new ExpectationException('"' . $text . '" text was found in the "' . $element . '" element', $this->getSession());
-        }
-
-        // We need to ensure all the found nodes are hidden.
-        $this->spin(
-            function($context, $args) {
-
-                foreach ($args['nodes'] as $node) {
-                    if ($node->isVisible()) {
-                        throw new ExpectationException('"' . $args['text'] . '" text was found in the "' . $args['element'] . '" element', $context->getSession());
-                    }
-                }
-
-                // If all the found nodes are hidden we are happy.
-                return true;
-            },
-            array('nodes' => $nodes, 'text' => $text, 'element' => $element),
-            self::REDUCED_TIMEOUT,
-            false,
-            true
-        );
+        $msg = '"' . $text . '" text was found in the "' . $element . '" element';
+        $exception = new ExpectationException($msg, $this->getSession());
+        $this->assert_not_contains_text($text, $exception, $element, $selectortype);
     }
 
     /**

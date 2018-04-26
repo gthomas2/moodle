@@ -101,6 +101,16 @@ class graded_users_iterator {
     protected $suspendedusers = array();
 
     /**
+     * @var bool $showgroups Include groups in the export
+     */
+    protected $showcohorts;
+
+    /**
+     * @var bool $showcohorts Include cohorts in the export
+     */
+    protected $showgroups;
+
+    /**
      * Constructor
      *
      * @param object $course A course object
@@ -110,10 +120,13 @@ class graded_users_iterator {
      * @param string $sortorder1 The order in which the first sorting field will be sorted (ASC or DESC)
      * @param string $sortfield2 The second field of the users table by which the array of users will be sorted
      * @param string $sortorder2 The order in which the second sorting field will be sorted (ASC or DESC)
+     * @param bool   $showcohorts When true, cohorts will be included in the export
+     * @param bool   $showgroups When true, group names will be included in the exprot
      */
     public function __construct($course, $grade_items=null, $groupid=0,
                                           $sortfield1='lastname', $sortorder1='ASC',
-                                          $sortfield2='firstname', $sortorder2='ASC') {
+                                          $sortfield2='firstname', $sortorder2='ASC',
+                                          $showcohorts=false, $showgroups=false) {
         $this->course      = $course;
         $this->grade_items = $grade_items;
         $this->groupid     = $groupid;
@@ -121,6 +134,8 @@ class graded_users_iterator {
         $this->sortorder1  = $sortorder1;
         $this->sortfield2  = $sortfield2;
         $this->sortorder2  = $sortorder2;
+        $this->showcohorts = $showcohorts;
+        $this->showgroups  = $showgroups;
 
         $this->gradestack  = array();
     }
@@ -145,19 +160,31 @@ class graded_users_iterator {
         $coursecontext = context_course::instance($this->course->id);
 
         list($relatedctxsql, $relatedctxparams) = $DB->get_in_or_equal($coursecontext->get_parent_context_ids(true), SQL_PARAMS_NAMED, 'relatedctx');
-        list($gradebookroles_sql, $params) = $DB->get_in_or_equal(explode(',', $CFG->gradebookroles), SQL_PARAMS_NAMED, 'grbr');
+        list($gradebookrolessql, $params) = $DB->get_in_or_equal(explode(',', $CFG->gradebookroles), SQL_PARAMS_NAMED, 'grbr');
         list($enrolledsql, $enrolledparams) = get_enrolled_sql($coursecontext, '', 0, $this->onlyactive);
 
         $params = array_merge($params, $enrolledparams, $relatedctxparams);
 
+        $groupsql = "JOIN {groups_members} gm ON gm.userid = u.id
+                     JOIN {groups} gr ON gr.id = gm.groupid AND gr.courseid = :courseid";
+        $groupfields = ", GROUP_CONCAT(DISTINCT gr.name SEPARATOR ', ') AS groups";
+        $params['courseid'] = $this->course->id;
+
         if ($this->groupid) {
-            $groupsql = "INNER JOIN {groups_members} gm ON gm.userid = u.id";
             $groupwheresql = "AND gm.groupid = :groupid";
             // $params contents: gradebookroles
             $params['groupid'] = $this->groupid;
         } else {
-            $groupsql = "";
             $groupwheresql = "";
+        }
+
+        if ($this->showcohorts) {
+            $cohortsql = "JOIN {cohort_members} cm ON cm.userid = u.id
+                          JOIN {cohort} c ON c.id = cm.cohortid";
+            $cohortfields = ", GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS cohorts";
+        } else {
+            $cohortsql = "";
+            $cohortfields = "";
         }
 
         if (empty($this->sortfield1)) {
@@ -198,18 +225,19 @@ class graded_users_iterator {
             }
         }
 
-        $users_sql = "SELECT $userfields $ofields
+        $users_sql = "SELECT $userfields $groupfields $cohortfields $ofields
                         FROM {user} u
                         JOIN ($enrolledsql) je ON je.id = u.id
-                             $groupsql $customfieldssql
+                             $groupsql $customfieldssql $cohortsql
                         JOIN (
                                   SELECT DISTINCT ra.userid
                                     FROM {role_assignments} ra
-                                   WHERE ra.roleid $gradebookroles_sql
+                                   WHERE ra.roleid $gradebookrolessql
                                      AND ra.contextid $relatedctxsql
                              ) rainner ON rainner.userid = u.id
                          WHERE u.deleted = 0
                              $groupwheresql
+                    GROUP BY u.id
                     ORDER BY $order";
         $this->users_rs = $DB->get_recordset_sql($users_sql, $params);
 
@@ -233,7 +261,7 @@ class graded_users_iterator {
                              JOIN (
                                       SELECT DISTINCT ra.userid
                                         FROM {role_assignments} ra
-                                       WHERE ra.roleid $gradebookroles_sql
+                                       WHERE ra.roleid $gradebookrolessql
                                          AND ra.contextid $relatedctxsql
                                   ) rainner ON rainner.userid = u.id
                               WHERE u.deleted = 0
@@ -318,6 +346,15 @@ class graded_users_iterator {
         $result->user      = $user;
         $result->grades    = $grades;
         $result->feedbacks = $feedbacks;
+
+        if ($this->showgroups) {
+            $result->groups = $user->groups;
+        }
+
+        if ($this->showcohorts) {
+            $result->cohorts = $user->cohorts;
+        }
+
         return $result;
     }
 
@@ -3376,4 +3413,3 @@ abstract class grade_helper {
         return $result;
     }
 }
-

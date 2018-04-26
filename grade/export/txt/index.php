@@ -45,7 +45,9 @@ $formoptions = array(
     'includeseparator'=>true,
     'publishing' => true,
     'simpleui' => true,
-    'multipledisplaytypes' => true
+    'multipledisplaytypes' => true,
+    'showgroups' => true,
+    'showcohorts' => true
 );
 
 $mform = new grade_export_form($actionurl, $formoptions);
@@ -67,4 +69,3 @@ echo '<div class="clearer"></div>';
 $mform->display();
 
 echo $OUTPUT->footer();
-

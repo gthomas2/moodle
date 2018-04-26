@@ -214,9 +214,11 @@ $string['expand'] = 'Expand category';
 $string['expandcriterion'] = 'Expand criterion';
 $string['export'] = 'Export';
 $string['exportalloutcomes'] = 'Export all outcomes';
+$string['exportcohorts'] = 'Include cohorts in export';
 $string['exportfeedback'] = 'Include feedback in export';
 $string['exportfeedback_desc'] = 'This can be overridden during export.';
 $string['exportformatoptions'] = 'Export format options';
+$string['exportgroups'] = 'Include groups in export';
 $string['exportplugins'] = 'Export plugins';
 $string['exportsettings'] = 'Export settings';
 $string['exportonlyactive'] = 'Exclude suspended users';
@@ -876,4 +878,3 @@ $string['writinggradebookinfo'] = 'Writing gradebook settings';
 $string['xml'] = 'XML';
 $string['yes'] = 'Yes';
 $string['yourgrade'] = 'Your grade';
-

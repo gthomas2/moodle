@@ -52,6 +52,16 @@ abstract class grade_export {
     public $usercustomfields; // include users custom fields
 
     /**
+     * @var bool $showgroups Include groups in the export
+     */
+    public $showgroups = false;
+
+    /**
+     * @var bool $showcohorts Include cohorts in the export
+     */
+    public $showcohorts = false;
+
+    /**
      * @deprecated since Moodle 2.8
      * @var $previewrows Number of rows in preview.
      */
@@ -186,6 +196,14 @@ abstract class grade_export {
 
         if (isset($formdata->export_onlyactive)) {
             $this->onlyactive = $formdata->export_onlyactive;
+        }
+
+        if (isset($formdata->export_showcohorts)) {
+            $this->showcohorts = $formdata->export_showcohorts;
+        }
+
+        if (isset($formdata->export_showgroups)) {
+            $this->showgroups = $formdata->export_showgroups;
         }
 
         if (isset($formdata->previewrows)) {
@@ -427,17 +445,19 @@ abstract class grade_export {
         } else {
             $updatedgradesonly = 0;
         }
-        $params = array('id'                => $this->course->id,
-                        'groupid'           => $this->groupid,
-                        'itemids'           => $itemidsparam,
-                        'export_letters'    => $this->export_letters,
-                        'export_feedback'   => $this->export_feedback,
-                        'updatedgradesonly' => $updatedgradesonly,
-                        'decimalpoints'     => $this->decimalpoints,
-                        'export_onlyactive' => $this->onlyactive,
-                        'usercustomfields'  => $this->usercustomfields,
-                        'displaytype'       => $displaytypes,
-                        'key'               => $this->userkey);
+        $params = array('id'                 => $this->course->id,
+                        'groupid'            => $this->groupid,
+                        'itemids'            => $itemidsparam,
+                        'export_letters'     => $this->export_letters,
+                        'export_feedback'    => $this->export_feedback,
+                        'updatedgradesonly'  => $updatedgradesonly,
+                        'decimalpoints'      => $this->decimalpoints,
+                        'export_onlyactive'  => $this->onlyactive,
+                        'usercustomfields'   => $this->usercustomfields,
+                        'displaytype'        => $displaytypes,
+                        'key'                => $this->userkey,
+                        'export_showgroups'  => $this->showgroups,
+                        'export_showcohorts' => $this->showcohorts);
 
         return $params;
     }
@@ -606,7 +626,8 @@ abstract class grade_export {
      * @return stdClass $formdata
      */
     public static function export_bulk_export_data($id, $itemids, $exportfeedback, $onlyactive, $displaytype,
-                                                   $decimalpoints, $updatedgradesonly = null, $separator = null) {
+                                                   $decimalpoints, $updatedgradesonly = null, $separator = null,
+                                                   $showgroups=false, $showcohorts=false) {
 
         $formdata = new \stdClass();
         $formdata->id = $id;
@@ -615,6 +636,8 @@ abstract class grade_export {
         $formdata->export_onlyactive = $onlyactive;
         $formdata->display = self::convert_flat_displaytypes_to_array($displaytype);
         $formdata->decimals = $decimalpoints;
+        $formdata->export_showgroups = $showgroups;
+        $formdata->export_showcohorts = $showcohorts;
 
         if (!empty($updatedgradesonly)) {
             $formdata->updatedgradesonly = $updatedgradesonly;

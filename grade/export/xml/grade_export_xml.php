@@ -53,7 +53,9 @@ class grade_export_xml extends grade_export {
         $export_buffer = array();
 
         $geub = new grade_export_update_buffer();
-        $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid);
+        $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid, 'lastname',
+                                          'ASC', 'firstname', 'ASC', $this->showcohorts,
+                                          $this->showgroups);
         $gui->require_active_enrolment($this->onlyactive);
         $gui->init();
         while ($userdata = $gui->next_user()) {
@@ -87,6 +89,14 @@ class grade_export_xml extends grade_export {
                 fwrite($handle,  "\t\t<assignment>{$grade_item->idnumber}</assignment>\n");
                 // this column should be customizable to use either student id, idnumber, uesrname or email.
                 fwrite($handle,  "\t\t<student>{$user->idnumber}</student>\n");
+
+                if ($this->showgroups) {
+                    fwrite($handle,  "\t\t<groups>{$userdata->groups}</groups>\n");
+                }
+                if ($this->showcohorts) {
+                    fwrite($handle,  "\t\t<cohorts>{$userdata->cohorts}</cohorts>\n");
+                }
+
                 // Format and display the grade in the selected display type (real, letter, percentage).
                 if (is_array($this->displaytype)) {
                     // Grades display type came from the return of export_bulk_export_data() on grade publishing.
@@ -121,5 +131,3 @@ class grade_export_xml extends grade_export {
         }
     }
 }
-
-

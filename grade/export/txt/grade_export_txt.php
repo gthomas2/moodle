@@ -67,6 +67,14 @@ class grade_export_txt extends grade_export {
             $exporttitle[] = get_string("suspended");
         }
 
+        if ($this->showgroups) {
+            $exporttitle[] = get_string("group");
+        }
+
+        if ($this->showcohorts) {
+            $exporttitle[] = get_string('cohorts', 'cohort');
+        }
+
         // Add grades and feedback columns.
         foreach ($this->columns as $grade_item) {
             foreach ($this->displaytype as $gradedisplayname => $gradedisplayconst) {
@@ -82,7 +90,9 @@ class grade_export_txt extends grade_export {
 
         // Print all the lines of data.
         $geub = new grade_export_update_buffer();
-        $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid);
+        $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid, 'lastname',
+                                          'ASC', 'firstname', 'ASC', $this->showcohorts,
+                                          $this->showgroups);
         $gui->require_active_enrolment($this->onlyactive);
         $gui->allow_user_custom_fields($this->usercustomfields);
         $gui->init();
@@ -98,6 +108,12 @@ class grade_export_txt extends grade_export {
             if (!$this->onlyactive) {
                 $issuspended = ($user->suspendedenrolment) ? get_string('yes') : '';
                 $exportdata[] = $issuspended;
+            }
+            if ($this->showgroups) {
+                $exportdata[] = $userdata->groups;
+            }
+            if ($this->showcohorts) {
+                $exportdata[] = $userdata->cohorts;
             }
             foreach ($userdata->grades as $itemid => $grade) {
                 if ($export_tracking) {
@@ -122,5 +138,3 @@ class grade_export_txt extends grade_export {
         exit;
     }
 }
-
-

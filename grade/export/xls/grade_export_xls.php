@@ -67,6 +67,12 @@ class grade_export_xls extends grade_export {
         if (!$this->onlyactive) {
             $myxls->write_string(0, $pos++, get_string("suspended"));
         }
+        if ($this->showgroups) {
+            $myxls->write_string(0, $pos++, get_string("group"));
+        }
+        if ($this->showcohorts) {
+            $myxls->write_string(0, $pos++, get_string('cohorts', 'cohort'));
+        }
         foreach ($this->columns as $grade_item) {
             foreach ($this->displaytype as $gradedisplayname => $gradedisplayconst) {
                 $myxls->write_string(0, $pos++, $this->format_column_name($grade_item, false, $gradedisplayname));
@@ -82,7 +88,10 @@ class grade_export_xls extends grade_export {
         // Print all the lines of data.
         $i = 0;
         $geub = new grade_export_update_buffer();
-        $gui = new graded_users_iterator($this->course, $this->columns, $this->groupid);
+        $gui = new graded_users_iterator($this->course, $this->columns,
+                                          $this->groupid, 'lastname', 'ASC',
+                                          'firstname', 'asc', $this->showgroups,
+                                          $this->showcohorts);
         $gui->require_active_enrolment($this->onlyactive);
         $gui->allow_user_custom_fields($this->usercustomfields);
         $gui->init();
@@ -98,6 +107,12 @@ class grade_export_xls extends grade_export {
             if (!$this->onlyactive) {
                 $issuspended = ($user->suspendedenrolment) ? get_string('yes') : '';
                 $myxls->write_string($i, $j++, $issuspended);
+            }
+            if ($this->showgroups) {
+                $myxls->write_string($i, $j++, $userdata->groups);
+            }
+            if ($this->showcohorts) {
+                $myxls->write_string($i, $j++, $userdata->cohorts);
             }
             foreach ($userdata->grades as $itemid => $grade) {
                 if ($export_tracking) {
@@ -128,5 +143,3 @@ class grade_export_xls extends grade_export {
         exit;
     }
 }
-
-

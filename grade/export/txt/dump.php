@@ -27,6 +27,8 @@ $separator          = optional_param('separator', 'comma', PARAM_ALPHA);
 $displaytype        = optional_param('displaytype', $CFG->grade_export_displaytype, PARAM_RAW);
 $decimalpoints      = optional_param('decimalpoints', $CFG->grade_export_decimalpoints, PARAM_INT);
 $onlyactive         = optional_param('export_onlyactive', 0, PARAM_BOOL);
+$showgroups         = optional_param('export_showgroups', 0, PARAM_INT);
+$showcohorts        = optional_param('export_showcohorts', 0, PARAM_INT);
 
 if (!$course = $DB->get_record('course', array('id'=>$id))) {
     print_error('invalidcourseid');
@@ -49,9 +51,7 @@ if (!groups_group_visible($groupid, $COURSE)) {
 
 // Get all url parameters and create an object to simulate a form submission.
 $formdata = grade_export::export_bulk_export_data($id, $itemids, $exportfeedback, $onlyactive, $displaytype,
-        $decimalpoints, null, $separator);
+        $decimalpoints, null, $separator, $showgroups, $showcohorts);
 
 $export = new grade_export_txt($course, $groupid, $formdata);
 $export->print_grades();
-
-

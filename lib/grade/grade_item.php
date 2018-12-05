@@ -2097,10 +2097,9 @@ class grade_item extends grade_object {
         $grade_inst = new grade_grade();
         $fields = 'g.'.implode(',g.', $grade_inst->required_fields);
 
-        $params[] = $this->courseid;
         $sql = "SELECT $fields
-                  FROM {grade_grades} g, {grade_items} gi
-                 WHERE gi.id = g.itemid AND gi.id $usql $usersql AND gi.courseid=?
+                  FROM {grade_grades} g
+                 WHERE g.itemid $usql $usersql
                  ORDER BY g.userid";
 
         $return = true;

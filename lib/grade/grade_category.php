@@ -449,6 +449,39 @@ class grade_category extends grade_object {
     }
 
     /**
+     * Get grade items from an array of grade item ids.
+     *
+     * @param array $ids
+     * @return array
+     * @throws coding_exception
+     * @throws dml_exception
+     */
+    private function get_grade_items_using_ids(array $ids) {
+        global $DB;
+
+        // Cache previous result in static variable - performance boost for deleting multiple users attempts within a loop.
+        static $lastids = null;
+        static $lastresult = null;
+
+        if ($lastids === $ids && !empty($lastresult)) {
+            return $lastresult;
+        }
+
+        list($usql, $params) = $DB->get_in_or_equal($ids);
+        $sql = "SELECT *
+                  FROM {grade_items}
+                 WHERE id $usql";
+        $items = $DB->get_records_sql($sql, $params);
+        foreach ($items as $id => $item) {
+            $items[$id] = new grade_item($item, false);
+        }
+
+        $lastids = $ids;
+        $lastresult = $items;
+        return $lastresult;
+    }
+
+    /**
      * Generates and saves final grades in associated category grade item.
      * These immediate children must already have their own final grades.
      * The category's aggregation method is used to generate final grades.
@@ -482,14 +515,8 @@ class grade_category extends grade_object {
             $items = false;
 
         } else {
-            list($usql, $params) = $DB->get_in_or_equal($depends_on);
-            $sql = "SELECT *
-                      FROM {grade_items}
-                     WHERE id $usql";
-            $items = $DB->get_records_sql($sql, $params);
-            foreach ($items as $id => $item) {
-                $items[$id] = new grade_item($item, false);
-            }
+
+            $items = $this->get_grade_items_using_ids($depends_on);
         }
 
         $grade_inst = new grade_grade();
@@ -507,10 +534,12 @@ class grade_category extends grade_object {
             $usersql = "";
         }
 
-        $sql = "SELECT $fields
-                  FROM {grade_grades} g, {grade_items} gi
-                 WHERE gi.id = g.itemid AND gi.id $usql $usersql
-              ORDER BY g.userid";
+        $sql = <<<SQL
+               SELECT $fields
+                 FROM {grade_grades} g
+                WHERE g.itemid $usql $usersql
+             ORDER BY g.userid
+SQL;
 
         // group the results by userid and aggregate the grades for this user
         $rs = $DB->get_recordset_sql($sql, $params);

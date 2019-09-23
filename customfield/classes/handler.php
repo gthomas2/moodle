@@ -562,7 +562,8 @@ abstract class handler {
      */
     public function instance_form_before_set_data(stdClass $instance) {
         $instanceid = !empty($instance->id) ? $instance->id : 0;
-        $fields = api::get_instance_fields_data($this->get_editable_fields($instanceid), $instanceid);
+        // Note, for forms we get all fields as the visibility settings are only related to the course list.
+        $fields = api::get_instance_fields_data($this->get_fields($instanceid), $instanceid);
 
         foreach ($fields as $formfield) {
             $formfield->instance_form_before_set_data($instance);
@@ -642,7 +643,10 @@ abstract class handler {
     public function instance_form_definition(\MoodleQuickForm $mform, int $instanceid = 0) {
 
         $editablefields = $this->get_editable_fields($instanceid);
-        $fieldswithdata = api::get_instance_fields_data($editablefields, $instanceid);
+        // Note, for forms we get all fields as the visibility settings are only related to the course list.
+        $allfields = $this->get_fields($instanceid);
+
+        $fieldswithdata = api::get_instance_fields_data($allfields, $instanceid);
         $lastcategoryid = null;
         foreach ($fieldswithdata as $data) {
             $categoryid = $data->get_field()->get_category()->get('id');
@@ -651,7 +655,13 @@ abstract class handler {
                     format_string($data->get_field()->get_category()->get('name')));
                 $lastcategoryid = $categoryid;
             }
+            $fieldid = $data->get_field()->get('id');
+            $editable = isset($editablefields[$fieldid]);
+            $name = $data->form_element_name();
             $data->instance_form_definition($mform);
+            if (!$editable) {
+                $mform->freeze($name);
+            }
             $field = $data->get_field()->to_record();
             if (strlen($field->description)) {
                 // Add field description.

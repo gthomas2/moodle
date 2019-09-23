@@ -26,6 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 use customfield_date\field_controller;
 use customfield_date\data_controller;
+use core_customfield\tests\plugin_testcase;
 
 /**
  * Functional test for customfield_date
@@ -34,16 +35,7 @@ use customfield_date\data_controller;
  * @copyright  2019 Marina Glancy
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class customfield_date_plugin_testcase extends advanced_testcase {
-
-    /** @var stdClass[]  */
-    private $courses = [];
-    /** @var \core_customfield\category_controller */
-    private $cfcat;
-    /** @var \core_customfield\field_controller[] */
-    private $cfields;
-    /** @var \core_customfield\data_controller[] */
-    private $cfdata;
+class customfield_date_plugin_testcase extends plugin_testcase {
 
     /**
      * Tests set up.
@@ -58,6 +50,9 @@ class customfield_date_plugin_testcase extends advanced_testcase {
         $this->cfields[2] = $this->get_generator()->create_field(
             ['categoryid' => $this->cfcat->get('id'), 'shortname' => 'myfield2', 'type' => 'date',
                 'configdata' => ['required' => 1, 'includetime' => 0, 'mindate' => 946684800, 'maxdate' => 1893456000]]);
+        $this->lockedfield = $this->get_generator()->create_field(
+            ['categoryid' => $this->cfcat->get('id'), 'shortname' => 'lockedfield', 'type' => 'date',
+                'configdata' => ['locked' => 1]]);
 
         $this->courses[1] = $this->getDataGenerator()->create_course();
         $this->courses[2] = $this->getDataGenerator()->create_course();

@@ -118,6 +118,15 @@ abstract class data_controller {
     }
 
     /**
+     * Allow for get_form_element_name to be called outside of this class without having to change all plugins
+     * to have a public method for get_form_element_name.
+     * @return string
+     */
+    public function form_element_name() : string {
+        return $this->get_form_element_name();
+    }
+
+    /**
      * Returns the name of the field to be used on HTML forms.
      *
      * @return string

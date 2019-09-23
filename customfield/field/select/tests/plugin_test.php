@@ -26,6 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 use customfield_select\field_controller;
 use customfield_select\data_controller;
+use core_customfield\tests\plugin_testcase;
 
 /**
  * Functional test for customfield_select
@@ -34,16 +35,7 @@ use customfield_select\data_controller;
  * @copyright  2019 Marina Glancy
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class customfield_select_plugin_testcase extends advanced_testcase {
-
-    /** @var stdClass[]  */
-    private $courses = [];
-    /** @var \core_customfield\category_controller */
-    private $cfcat;
-    /** @var \core_customfield\field_controller[] */
-    private $cfields;
-    /** @var \core_customfield\data_controller[] */
-    private $cfdata;
+class customfield_select_plugin_testcase extends plugin_testcase {
 
     /**
      * Tests set up.
@@ -62,6 +54,9 @@ class customfield_select_plugin_testcase extends advanced_testcase {
         $this->cfields[3] = $this->get_generator()->create_field(
             ['categoryid' => $this->cfcat->get('id'), 'shortname' => 'myfield3', 'type' => 'select',
                 'configdata' => ['defaultvalue' => 'b', 'options' => "a\nb\nc"]]);
+        $this->lockedfield = $this->get_generator()->create_field(
+            ['categoryid' => $this->cfcat->get('id'), 'shortname' => 'lockedfield', 'type' => 'select',
+                'configdata' => ['options' => "a\nb\nc", 'locked' => 1]]);
 
         $this->courses[1] = $this->getDataGenerator()->create_course();
         $this->courses[2] = $this->getDataGenerator()->create_course();

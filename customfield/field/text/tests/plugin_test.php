@@ -26,6 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 use customfield_text\field_controller;
 use customfield_text\data_controller;
+use core_customfield\tests\plugin_testcase;
 
 /**
  * Functional test for customfield_text
@@ -34,16 +35,7 @@ use customfield_text\data_controller;
  * @copyright  2019 Marina Glancy
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class customfield_text_plugin_testcase extends advanced_testcase {
-
-    /** @var stdClass[]  */
-    private $courses = [];
-    /** @var \core_customfield\category_controller */
-    private $cfcat;
-    /** @var \core_customfield\field_controller[] */
-    private $cfields;
-    /** @var \core_customfield\data_controller[] */
-    private $cfdata;
+class customfield_text_plugin_testcase extends plugin_testcase {
 
     /**
      * Tests set up.
@@ -65,6 +57,9 @@ class customfield_text_plugin_testcase extends advanced_testcase {
         $this->cfields[4] = $this->get_generator()->create_field(
             ['categoryid' => $this->cfcat->get('id'), 'shortname' => 'myfield4', 'type' => 'text',
                 'configdata' => ['link' => 'https://twitter.com/$$', 'maxlength' => 30, 'displaysize' => 50]]);
+        $this->lockedfield = $this->get_generator()->create_field(
+            ['categoryid' => $this->cfcat->get('id'), 'shortname' => 'lockedfield', 'type' => 'text',
+                'configdata' => ['locked' => 1, 'maxlength' => 30, 'displaysize' => 50]]);
 
         $this->courses[1] = $this->getDataGenerator()->create_course();
         $this->courses[2] = $this->getDataGenerator()->create_course();

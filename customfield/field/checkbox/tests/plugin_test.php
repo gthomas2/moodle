@@ -26,6 +26,7 @@ defined('MOODLE_INTERNAL') || die();
 
 use customfield_checkbox\field_controller;
 use customfield_checkbox\data_controller;
+use core_customfield\tests\plugin_testcase;
 
 /**
  * Functional test for customfield_checkbox
@@ -34,16 +35,7 @@ use customfield_checkbox\data_controller;
  * @copyright  2019 Marina Glancy
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class customfield_checkbox_plugin_testcase extends advanced_testcase {
-
-    /** @var stdClass[]  */
-    private $courses = [];
-    /** @var \core_customfield\category_controller */
-    private $cfcat;
-    /** @var \core_customfield\field_controller[] */
-    private $cfields;
-    /** @var \core_customfield\data_controller[] */
-    private $cfdata;
+class customfield_checkbox_plugin_testcase extends plugin_testcase {
 
     /**
      * Tests set up.
@@ -61,6 +53,9 @@ class customfield_checkbox_plugin_testcase extends advanced_testcase {
         $this->cfields[3] = $this->get_generator()->create_field(
             ['categoryid' => $this->cfcat->get('id'), 'shortname' => 'myfield3', 'type' => 'checkbox',
                 'configdata' => ['checkbydefault' => 1]]);
+        $this->lockedfield = $this->get_generator()->create_field(
+            ['categoryid' => $this->cfcat->get('id'), 'shortname' => 'lockedfield', 'type' => 'checkbox',
+                'configdata' => ['locked' => 1]]);
 
         $this->courses[1] = $this->getDataGenerator()->create_course();
         $this->courses[2] = $this->getDataGenerator()->create_course();

@@ -748,14 +748,15 @@ class behat_navigation extends behat_base {
      */
     public function i_am_on_course_homepage_with_editing_mode_on($coursefullname) {
         global $DB;
+
+        $session = $this->getSession();
+        $sesskey = $session->evaluateScript(
+            "return M.cfg.sesskey"
+        );
+
         $course = $DB->get_record("course", array("fullname" => $coursefullname), 'id', MUST_EXIST);
-        $url = new moodle_url('/course/view.php', ['id' => $course->id]);
+        $url = new moodle_url('/course/view.php', ['id' => $course->id, 'edit' => 'on', 'sesskey' => $sesskey]);
         $this->getSession()->visit($this->locate_path($url->out_as_local_url(false)));
-        try {
-            $this->execute("behat_forms::press_button", get_string('turneditingon'));
-        } catch (Exception $e) {
-            $this->execute("behat_navigation::i_navigate_to_in_current_page_administration", [get_string('turneditingon')]);
-        }
     }
 
     /**

@@ -90,8 +90,8 @@ class grade_export_xls extends grade_export {
         $geub = new grade_export_update_buffer();
         $gui = new graded_users_iterator($this->course, $this->columns,
                                           $this->groupid, 'lastname', 'ASC',
-                                          'firstname', 'asc', $this->showgroups,
-                                          $this->showcohorts);
+                                          'firstname', 'asc', $this->showcohorts,
+                                          $this->showgroups);
         $gui->require_active_enrolment($this->onlyactive);
         $gui->allow_user_custom_fields($this->usercustomfields);
         $gui->init();

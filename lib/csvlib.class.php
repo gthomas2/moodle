@@ -483,7 +483,9 @@ class csv_export_writer {
     protected function send_header() {
         global $CFG;
 
-        if (defined('BEHAT_SITE_RUNNING')) {
+        $isinphpunittest = (defined('PHPUNIT_TEST') && PHPUNIT_TEST);
+
+        if (defined('BEHAT_SITE_RUNNING') || $isinphpunittest) {
             // For text based formats - we cannot test the output with behat if we force a file download.
             return;
         }

@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Unit tests for grade/report/lib.php.
+ * Unit tests for grade/export/lib.php.
  *
  * @package  core_grades
  * @category phpunit
@@ -28,7 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 global $CFG;
 require_once($CFG->dirroot.'/grade/lib.php');
 require_once($CFG->dirroot.'/grade/export/lib.php');
-
+require_once($CFG->dirroot.'/grade/export/txt/grade_export_txt.php');
 /**
  * A test class used to test grade_report, the abstract grade report parent class
  */
@@ -169,5 +169,147 @@ class core_grade_export_test extends advanced_testcase {
             ],
 
         ];
+    }
+
+    public function test_get_export_params() {
+        $this->resetAfterTest();
+
+        $dg = $this->getDataGenerator();
+        $mock = $this->getMockForAbstractClass(
+            \grade_export::class,
+            [],
+            '',
+            false
+        );
+        $mock->course = $dg->create_course();
+
+        // Note - the mock has to have columns in order to function as we need it.
+        $mock->columns = [
+            new grade_item($dg->create_grade_item(['courseid' => $mock->course->id]), false)
+        ];
+
+        $params = $mock->get_export_params();
+        $this->assertArrayHasKey('export_showgroups', $params);
+        $this->assertArrayHasKey('export_showcohorts', $params);
+        $this->assertFalse($params['export_showgroups']);
+        $this->assertFalse($params['export_showcohorts']);
+
+        $mock->showgroups = true;
+        $mock->showcohorts = true;
+
+        $params = $mock->get_export_params();
+        $this->assertArrayHasKey('export_showgroups', $params);
+        $this->assertArrayHasKey('export_showcohorts', $params);
+        $this->assertTrue($params['export_showgroups']);
+        $this->assertTrue($params['export_showcohorts']);
+    }
+
+    /**
+     * Get grade export csv output.
+     * @param grade_export_txt $gradeexport
+     * @return array
+     */
+    private function get_grade_csv_output(grade_export_txt $gradeexport): array {
+        $gradescsv = $gradeexport->print_grades();
+        $iid = csv_import_reader::get_new_iid('lib');
+        $csvimport = new csv_import_reader($iid, 'lib');
+        $csvimport->load_csv_content($gradescsv, 'utf-8', 'comma');
+        $csvimport->init();
+        $dataset = array();
+        $dataset[] = $csvimport->get_columns();
+        while ($record = $csvimport->next()) {
+            $dataset[] = $record;
+        }
+        $csvimport->cleanup();
+        $csvimport->close();
+        return $dataset;
+    }
+
+    public function test_grade_group_export() {
+        $this->resetAfterTest();
+
+        $dg = $this->getDataGenerator();
+        $c1 = $dg->create_course();
+        $u1 = $dg->create_user();
+        $dg->enrol_user($u1->id, $c1->id, 'student');
+        $gi1a = new grade_item($dg->create_grade_item(['courseid' => $c1->id]), false);
+        $gi1b = new grade_item($dg->create_grade_item(['courseid' => $c1->id]), false);
+        $gi1c = new grade_item($dg->create_grade_item(['courseid' => $c1->id]), false);
+        $cht1 = $dg->create_cohort();
+        $cht2 = $dg->create_cohort();
+        $cht3 = $dg->create_cohort();
+
+        $contextid = $gi1a->get_context()->id;
+        $gradeid = $gi1a->id;
+        $gp1 = $dg->create_group(['courseid' => $c1->id, 'name' => 'group1']);
+        $gp2 = $dg->create_group(['courseid' => $c1->id, 'name' => 'group2']);
+        $gp3 = $dg->create_group(['courseid' => $c1->id, 'name' => 'group3']);
+        $fdata = (object) [
+          'separator' => ','
+        ];
+
+        // Test that no group or cohort header is present when not selected for export.
+        $gradeexport = new grade_export_txt($c1, 0, $fdata);
+        $gradeexport->columns = [
+            $gi1a,
+            $gi1b,
+            $gi1c
+        ];
+        $gradeexport->displaytype = ['grade' => 1, 'grade' => 1, 'grade' => 1];
+        $gradeexport->course = $c1;
+        if (grade_needs_regrade_final_grades($c1->id)) {
+            grade_regrade_final_grades($c1->id, null, null, null);
+        }
+        $dataset = $this->get_grade_csv_output($gradeexport);
+
+        $groupslangstr = get_string('group');
+        $cohortslangstr = get_string('cohorts', 'cohort');
+
+        $this->assertNotContains($groupslangstr, $dataset[0]);
+        $this->assertNotContains($cohortslangstr, $dataset[0]);
+
+        // Test groups show up when selected.
+        $gradeexport->showgroups = true;
+        if (grade_needs_regrade_final_grades($c1->id)) {
+            grade_regrade_final_grades($c1->id, null, null, null);
+        }
+        $dataset = $this->get_grade_csv_output($gradeexport);
+
+        $this->assertContains($groupslangstr, $dataset[0]);
+        $this->assertNotContains($cohortslangstr, $dataset[0]);
+        $grouppos = array_search(get_string('group'), $dataset[0]);
+        // Test that group cell is empty until students are allocated to group.
+        $this->assertEmpty($dataset[1][$grouppos]);
+        // Add student to groups and ensure appropriate groups show up in export cell.
+        $dg->create_group_member(['userid' => $u1->id, 'groupid' => $gp1->id]);
+        $dg->create_group_member(['userid' => $u1->id, 'groupid' => $gp2->id]);
+        $dataset = $this->get_grade_csv_output($gradeexport);
+        $grouppos = array_search($groupslangstr, $dataset[0]);
+        $this->assertNotEmpty($dataset[1][$grouppos]);
+        $groupstr = $dataset[1][$grouppos];
+        $this->assertContains($gp1->name, $groupstr);
+        $this->assertContains($gp2->name, $groupstr);
+        $this->assertNotContains($gp3->name, $groupstr);
+
+        // Test cohorts show up when selected.
+        $gradeexport->showcohorts = true;
+        $dataset = $this->get_grade_csv_output($gradeexport);
+
+        $this->assertContains($cohortslangstr, $dataset[0]);
+        // Assert cohorts cell is empty until a student is in the cohort.
+        $cohortpos = array_search($cohortslangstr, $dataset[0]);
+        $this->assertEmpty($dataset[1][$cohortpos]);
+        // Add student to cohorts and ensure appropriate cohorts show up in export cell.
+        cohort_add_member($cht1->id, $u1->id);
+        cohort_add_member($cht2->id, $u1->id);
+        $dataset = $this->get_grade_csv_output($gradeexport);
+        $this->assertNotEmpty($dataset[1][$cohortpos]);
+        $dataset = $this->get_grade_csv_output($gradeexport);
+        $cohortpos = array_search($cohortslangstr, $dataset[0]);
+        $this->assertNotEmpty($dataset[1][$cohortpos]);
+        $cohortstr = $dataset[1][$cohortpos];
+        $this->assertContains($cht1->name, $cohortstr);
+        $this->assertContains($cht2->name, $cohortstr);
+        $this->assertNotContains($cht3->name, $cohortstr);
     }
 }

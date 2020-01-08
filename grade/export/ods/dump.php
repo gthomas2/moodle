@@ -26,8 +26,8 @@ $exportfeedback     = optional_param('export_feedback', 0, PARAM_BOOL);
 $displaytype        = optional_param('displaytype', $CFG->grade_export_displaytype, PARAM_RAW);
 $decimalpoints      = optional_param('decimalpoints', $CFG->grade_export_decimalpoints, PARAM_INT);
 $onlyactive         = optional_param('export_onlyactive', 0, PARAM_BOOL);
-$showgroups         = optional_param('export_showgroups', 0, PARAM_INT);
-$showcohorts        = optional_param('export_showcohorts', 0, PARAM_INT);
+$showgroups         = optional_param('export_showgroups', 0, PARAM_BOOL);
+$showcohorts        = optional_param('export_showcohorts', 0, PARAM_BOOL);
 
 if (!$course = $DB->get_record('course', array('id'=>$id))) {
     print_error('invalidcourseid');
@@ -54,3 +54,4 @@ $formdata = grade_export::export_bulk_export_data($id, $itemids, $exportfeedback
 
 $export = new grade_export_ods($course, $groupid, $formdata);
 $export->print_grades();
+

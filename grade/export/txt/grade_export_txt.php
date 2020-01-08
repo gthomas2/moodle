@@ -134,7 +134,13 @@ class grade_export_txt extends grade_export {
         }
         $gui->close();
         $geub->close();
+
+        if (defined('PHPUNIT_TEST') && PHPUNIT_TEST) {
+            return $csvexport->print_csv_data(true);
+        }
+
         $csvexport->download_file();
         exit;
     }
 }
+

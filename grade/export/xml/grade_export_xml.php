@@ -131,3 +131,4 @@ class grade_export_xml extends grade_export {
         }
     }
 }
+

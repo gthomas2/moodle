@@ -52,12 +52,12 @@ abstract class grade_export {
     public $usercustomfields; // include users custom fields
 
     /**
-     * @var bool $showgroups Include groups in the export
+     * @var bool $showgroups Include groups in the export.
      */
     public $showgroups = false;
 
     /**
-     * @var bool $showcohorts Include cohorts in the export
+     * @var bool $showcohorts Include cohorts in the export.
      */
     public $showcohorts = false;
 
@@ -622,12 +622,13 @@ abstract class grade_export {
      * @param int $decimalpoints grade decimal points.
      * @param null $updatedgradesonly recently updated grades only (Used by XML exporting only).
      * @param null $separator separator character: tab, comma, colon and semicolon (Used by TXT exporting only).
-     *
+     * @param bool $showgroups
+     * @param bool $showcohorts
      * @return stdClass $formdata
      */
     public static function export_bulk_export_data($id, $itemids, $exportfeedback, $onlyactive, $displaytype,
                                                    $decimalpoints, $updatedgradesonly = null, $separator = null,
-                                                   $showgroups=false, $showcohorts=false) {
+                                                   $showgroups = false, $showcohorts = false) {
 
         $formdata = new \stdClass();
         $formdata->id = $id;

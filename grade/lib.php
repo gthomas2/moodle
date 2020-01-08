@@ -101,14 +101,24 @@ class graded_users_iterator {
     protected $suspendedusers = array();
 
     /**
-     * @var bool $showgroups Include groups in the export
+     * @var bool $showgroups Include groups in the export.
      */
     protected $showcohorts;
 
     /**
-     * @var bool $showcohorts Include cohorts in the export
+     * @var bool $showcohorts Include cohorts in the export.
      */
     protected $showgroups;
+
+    /**
+     * @var array Group names by userid.
+     */
+    protected $groupsbyuserid = [];
+
+    /**
+     * @var array Cohort names by userid.
+     */
+    protected $cohortsbyuserid = [];
 
     /**
      * Constructor
@@ -121,12 +131,12 @@ class graded_users_iterator {
      * @param string $sortfield2 The second field of the users table by which the array of users will be sorted
      * @param string $sortorder2 The order in which the second sorting field will be sorted (ASC or DESC)
      * @param bool   $showcohorts When true, cohorts will be included in the export
-     * @param bool   $showgroups When true, group names will be included in the exprot
+     * @param bool   $showgroups When true, group names will be included in the export
      */
-    public function __construct($course, $grade_items=null, $groupid=0,
-                                          $sortfield1='lastname', $sortorder1='ASC',
-                                          $sortfield2='firstname', $sortorder2='ASC',
-                                          $showcohorts=false, $showgroups=false) {
+    public function __construct($course, $grade_items = null, $groupid = 0,
+                                          $sortfield1 = 'lastname', $sortorder1 = 'ASC',
+                                          $sortfield2 = 'firstname', $sortorder2 = 'ASC',
+                                          $showcohorts = false, $showgroups = false) {
         $this->course      = $course;
         $this->grade_items = $grade_items;
         $this->groupid     = $groupid;
@@ -138,6 +148,58 @@ class graded_users_iterator {
         $this->showgroups  = $showgroups;
 
         $this->gradestack  = array();
+    }
+
+    /**
+     * Set groups belonging to each user for the entire course, hashed by userid.
+     * @return void
+     * @throws dml_exception
+     */
+    private function set_user_groups_for_course(): void {
+        global $DB;
+
+        $sql = "SELECT g.id, g.name, gm.userid
+                  FROM {groups} g
+                  JOIN {groups_members} gm ON gm.groupid = g.id
+                 WHERE g.courseid = ?
+              ORDER BY gm.userid";
+
+        $rs = $DB->get_recordset_sql($sql, [$this->course->id]);
+        foreach ($rs as $row) {
+            if (!isset($groupsbyuserid[$row->userid])) {
+                $groupsbyuserid[$row->userid] = [];
+            }
+            $groupsbyuserid[$row->userid][] = $row->name;
+        }
+        $rs->close();
+        $this->groupsbyuserid = $groupsbyuserid;
+    }
+
+    /**
+     * Set cohorts belonging to each user for the entire course, hashed by userid.
+     * @param string $enrolledsql
+     * @param array $enrolledparams
+     * @throws dml_exception
+     */
+    private function set_user_cohorts_for_course(string $enrolledsql, array $enrolledparams): void {
+        global $DB;
+
+        $cohortsql = "SELECT c.id, c.name, cm.userid
+                        FROM {user} u
+                        JOIN ($enrolledsql) je ON je.id = u.id
+                        JOIN {cohort_members} cm ON cm.userid = u.id
+                        JOIN {cohort} c ON c.id = cm.cohortid
+                    ORDER BY cm.userid";
+
+        $rs = $DB->get_recordset_sql($cohortsql, $enrolledparams);
+        foreach ($rs as $row) {
+            if (!isset($cohortsbyuserid[$row->userid])) {
+                $cohortsbyuserid[$row->userid] = [];
+            }
+            $cohortsbyuserid[$row->userid][] = $row->name;
+        }
+        $this->cohortsbyuserid = $cohortsbyuserid;
+        $rs->close();
     }
 
     /**
@@ -160,31 +222,29 @@ class graded_users_iterator {
         $coursecontext = context_course::instance($this->course->id);
 
         list($relatedctxsql, $relatedctxparams) = $DB->get_in_or_equal($coursecontext->get_parent_context_ids(true), SQL_PARAMS_NAMED, 'relatedctx');
-        list($gradebookrolessql, $params) = $DB->get_in_or_equal(explode(',', $CFG->gradebookroles), SQL_PARAMS_NAMED, 'grbr');
+        list($gradebookroles_sql, $params) = $DB->get_in_or_equal(explode(',', $CFG->gradebookroles), SQL_PARAMS_NAMED, 'grbr');
         list($enrolledsql, $enrolledparams) = get_enrolled_sql($coursecontext, '', 0, $this->onlyactive);
 
         $params = array_merge($params, $enrolledparams, $relatedctxparams);
 
-        $groupsql = "JOIN {groups_members} gm ON gm.userid = u.id
-                     JOIN {groups} gr ON gr.id = gm.groupid AND gr.courseid = :courseid";
-        $groupfields = ", GROUP_CONCAT(DISTINCT gr.name SEPARATOR ', ') AS groups";
-        $params['courseid'] = $this->course->id;
-
         if ($this->groupid) {
+            $groupsql = "INNER JOIN {groups_members} gm ON gm.userid = u.id";
             $groupwheresql = "AND gm.groupid = :groupid";
             // $params contents: gradebookroles
             $params['groupid'] = $this->groupid;
         } else {
+            $groupsql = "";
             $groupwheresql = "";
         }
 
+        // Note for showgroups / showcohorts - we can't just add a GROUP_CONCAT flattened field of all group / cohort
+        // memberships to the $users_sql since Moodle does not have a DB helper for GROUP_CONCAT at the time of writing.
+        // Instead we are forced to get all group memberships, cohort memberships for the course separately.
+        if ($this->showgroups) {
+            $this->set_user_groups_for_course();
+        }
         if ($this->showcohorts) {
-            $cohortsql = "JOIN {cohort_members} cm ON cm.userid = u.id
-                          JOIN {cohort} c ON c.id = cm.cohortid";
-            $cohortfields = ", GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') AS cohorts";
-        } else {
-            $cohortsql = "";
-            $cohortfields = "";
+            $this->set_user_cohorts_for_course();
         }
 
         if (empty($this->sortfield1)) {
@@ -225,19 +285,18 @@ class graded_users_iterator {
             }
         }
 
-        $users_sql = "SELECT $userfields $groupfields $cohortfields $ofields
+        $users_sql = "SELECT $userfields $ofields
                         FROM {user} u
                         JOIN ($enrolledsql) je ON je.id = u.id
-                             $groupsql $customfieldssql $cohortsql
+                             $groupsql $customfieldssql
                         JOIN (
                                   SELECT DISTINCT ra.userid
                                     FROM {role_assignments} ra
-                                   WHERE ra.roleid $gradebookrolessql
+                                   WHERE ra.roleid $gradebookroles_sql
                                      AND ra.contextid $relatedctxsql
                              ) rainner ON rainner.userid = u.id
                          WHERE u.deleted = 0
                              $groupwheresql
-                    GROUP BY u.id
                     ORDER BY $order";
         $this->users_rs = $DB->get_recordset_sql($users_sql, $params);
 
@@ -261,7 +320,7 @@ class graded_users_iterator {
                              JOIN (
                                       SELECT DISTINCT ra.userid
                                         FROM {role_assignments} ra
-                                       WHERE ra.roleid $gradebookrolessql
+                                       WHERE ra.roleid $gradebookroles_sql
                                          AND ra.contextid $relatedctxsql
                                   ) rainner ON rainner.userid = u.id
                               WHERE u.deleted = 0
@@ -348,11 +407,23 @@ class graded_users_iterator {
         $result->feedbacks = $feedbacks;
 
         if ($this->showgroups) {
-            $result->groups = $user->groups;
+            // Add group names string.
+            $groups = isset($this->groupsbyuserid[$user->id]) ? $this->groupsbyuserid[$user->id] : null;
+            $groupnames = '';
+            if (!empty($groups)) {
+                $groupnames = implode(', ', $groups);
+            }
+            $result->groups = $groupnames;
         }
 
         if ($this->showcohorts) {
-            $result->cohorts = $user->cohorts;
+            // Add cohort names string.
+            $cohorts = isset($this->cohortsbyuserid[$user->id]) ? $this->cohortsbyuserid[$user->id] : null;
+            $cohortnames = '';
+            if (!empty($cohorts)) {
+                $cohortnames = implode(', ', $cohorts);
+            }
+            $result->cohorts = $cohortnames;
         }
 
         return $result;

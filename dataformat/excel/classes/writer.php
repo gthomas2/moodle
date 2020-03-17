@@ -26,6 +26,9 @@ namespace dataformat_excel;
 
 defined('MOODLE_INTERNAL') || die();
 
+// @codingStandardsIgnoreFile
+// phpcs:ignoreFile
+
 /**
  * Excel data format writer
  *
@@ -64,6 +67,36 @@ class writer extends \core\dataformat\spout_base {
         $title = trim($title, "'");
 
         $this->sheettitle = $title;
+    }
+
+    /**
+     * Write the start of the sheet we will be adding data to.
+     *
+     * @param array $columns
+     */
+    public function start_sheet($columns) {
+        if ($this->sheettitle && $this->writer instanceof \Box\Spout\Writer\WriterMultiSheetsAbstract) {
+            if ($this->renamecurrentsheet) {
+                $sheet = $this->writer->getCurrentSheet();
+                $this->renamecurrentsheet = false;
+            } else {
+                $sheet = $this->writer->addNewSheetAndMakeItCurrent();
+            }
+            $sheet->setName($this->sheettitle);
+        }
+        $row = writer_entity_factory::createRowFromArray((array)$columns);
+        $this->writer->addRow($row);
+    }
+
+    /**
+     * Write a single record
+     *
+     * @param object $record
+     * @param int $rownum
+     */
+    public function write_record($record, $rownum) {
+        $row = writer_entity_factory::createRowFromArray((array)$record);
+        $this->writer->addRow($row);
     }
 }
 

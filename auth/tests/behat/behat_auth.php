@@ -69,6 +69,58 @@ class behat_auth extends behat_base {
     }
 
     /**
+     * This is much better than using "I log in as step" since it cuts out the form
+     * filling steps.
+     *
+     * @Given I am logged in as :username
+     * @param string $username
+     */
+    public function fast_login(string $username, ?array $urlparams = []): void {
+        $urlparams = array_merge($urlparams, ['username' => $username]);
+        $url = new moodle_url('/lib/tests/behat/fastlogin.php', $urlparams);
+        $this->execute('behat_general::i_visit', [$url]);
+    }
+
+
+    /**
+     * Much faster than core's steps as it has no login form filling.
+     *
+     * @Given I am logged in as :username and on the course :coursefullname
+     * @param string $username
+     * @param string $coursefullname
+     */
+    public function fast_login_to_course(string $username, string $coursefullname, bool $witheditingon = false): void {
+        global $DB;
+
+        if (!$this->running_javascript()) {
+            throw new coding_exception("This step requires @javascript to run!");
+        }
+
+        $course = $DB->get_record("course", ['fullname' => $coursefullname], 'id', MUST_EXIST);
+        $redirecturl = new moodle_url('/course/view.php', ['id' => $course->id]);
+        $urlparams = [
+            'redirecturl' => $redirecturl.''
+        ];
+
+        if ($witheditingon) {
+            $urlparams['forceeditmode'] = 1;
+        }
+
+        $this->fast_login($username, $urlparams);
+    }
+
+    /**
+     * Much faster than core's steps as it has no login form filling.
+     *
+     * @Given I am logged in as :username and editing the course :coursefullname
+     * @param string $username
+     * @param string $coursefullname
+     */
+    public function fast_login_to_course_and_edit(string $username, string $coursefullname) {
+        $this->fast_login_to_course($username, $coursefullname, true);
+    }
+
+    /**
      * Logs out of the system.
      *
      * @Given /^I log out$/

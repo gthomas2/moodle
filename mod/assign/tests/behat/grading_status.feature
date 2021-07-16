@@ -22,8 +22,7 @@ Feature: View the grading status of an assignment
   @javascript
   Scenario: View the grading status for an assignment with marking workflow enabled
     # Add the assignment.
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
+    Given I am logged in as "teacher1" and editing the course "Course 1"
     And I add a "Assignment" to section "1" and I fill the form with:
       | Assignment name | Test assignment name |
       | Description | Test assignment description |
@@ -31,8 +30,7 @@ Feature: View the grading status of an assignment
       | Use marking workflow | Yes |
     And I log out
     # Add a submission.
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    Given I am logged in as "student1" and on the course "Course 1"
     When I follow "Test assignment name"
     Then I should not see "Feedback"
     And I should see "Not marked" in the "Grading status" "table_row"
@@ -42,8 +40,7 @@ Feature: View the grading status of an assignment
     And I press "Save changes"
     And I log out
     # Mark the submission.
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage
+    Given I am logged in as "teacher1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I navigate to "View all submissions" in current page administration
     And I should see "Not marked" in the "Student 1" "table_row"
@@ -64,15 +61,13 @@ Feature: View the grading status of an assignment
     And I should see "In review" in the "Student 1" "table_row"
     And I log out
     # View the grading status as a student.
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    Given I am logged in as "student1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I should see "In review" in the "Grading status" "table_row"
     And I should not see "Great job! Lol, not really."
     And I log out
     # Mark the submission again but set the marking workflow to 'Released'.
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage
+    Given I am logged in as "teacher1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I navigate to "View all submissions" in current page administration
     And I should see "In review" in the "Student 1" "table_row"
@@ -87,15 +82,13 @@ Feature: View the grading status of an assignment
     And I should see "Released" in the "Student 1" "table_row"
     And I log out
     # View the grading status as a student.
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    Given I am logged in as "student1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I should see "Released" in the "Grading status" "table_row"
     And I should see "Great job! Lol, not really."
     And I log out
     # Now, change the status from 'Released' to 'In marking' (this will remove the grade from the gradebook).
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage
+    Given I am logged in as "teacher1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I navigate to "View all submissions" in current page administration
     And I should see "Released" in the "Student 1" "table_row"
@@ -122,16 +115,14 @@ Feature: View the grading status of an assignment
   @javascript
   Scenario: View the grading status for an assignment with marking workflow disabled
     # Add the assignment.
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage with editing mode on
+    Given I am logged in as "teacher1" and editing the course "Course 1"
     And I add a "Assignment" to section "1" and I fill the form with:
       | Assignment name | Test assignment name |
       | Description | Test assignment description |
       | Online text | 1 |
     And I log out
     # Add a submission.
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am logged in as "student1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I should not see "Feedback"
     And I should see "Not graded" in the "Grading status" "table_row"
@@ -141,8 +132,7 @@ Feature: View the grading status of an assignment
     And I press "Save changes"
     And I log out
     # Mark the submission.
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage
+    Given I am logged in as "teacher1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I navigate to "View all submissions" in current page administration
     And I should not see "Graded" in the "Student 1" "table_row"
@@ -161,15 +151,13 @@ Feature: View the grading status of an assignment
     And I should see "Graded" in the "Student 1" "table_row"
     And I log out
     # View the grading status as a student.
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am logged in as "student1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I should see "Graded" in the "Grading status" "table_row"
     And I should see "Great job! Lol, not really."
     And I log out
     # Student makes a subsequent submission.
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am logged in as "student1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I press "Edit submission"
     And I set the following fields to these values:
@@ -177,8 +165,7 @@ Feature: View the grading status of an assignment
     And I press "Save changes"
     And I log out
     # Teacher marks the submission again after noticing the 'Graded - follow up submission received'.
-    And I log in as "teacher1"
-    And I am on "Course 1" course homepage
+    And I am logged in as "teacher1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I navigate to "View all submissions" in current page administration
     And I should see "Graded - follow up submission received" in the "Student 1" "table_row"
@@ -195,8 +182,7 @@ Feature: View the grading status of an assignment
     And I should see "Graded" in the "Student 1" "table_row"
     And I log out
     # View the grading status as a student again.
-    And I log in as "student1"
-    And I am on "Course 1" course homepage
+    And I am logged in as "student1" and on the course "Course 1"
     And I follow "Test assignment name"
     And I should see "Graded" in the "Grading status" "table_row"
     And I should see "Even better job! Really."
